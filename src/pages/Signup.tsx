@@ -1,71 +1,54 @@
 import { AuthShell } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Link, useNavigate } from "react-router-dom";
-import { toast } from "sonner";
-import { FormEvent, useEffect, useState } from "react";
-import { cn } from "@/lib/utils";
-
-const roles = [
-  { id: "owner", label: "Salon Owner", desc: "Run the whole operation." },
-  { id: "staff", label: "Staff / Stylist", desc: "Manage your chair." },
-  { id: "customer", label: "Customer", desc: "Book your next cut." },
-];
+import { Link } from "react-router-dom";
+import { CheckCircle2 } from "lucide-react";
+import { useEffect } from "react";
+import { waLink } from "@/lib/constants";
 
 const Signup = () => {
-  const nav = useNavigate();
-  const [role, setRole] = useState("owner");
-  useEffect(() => { document.title = "Create account — Salon OS"; }, []);
-
-  const onSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    toast.success("Account created. Welcome to Salon OS.");
-    setTimeout(() => nav(role === "customer" ? "/book" : "/dashboard"), 600);
-  };
+  useEffect(() => { document.title = "Request Access — Salon OS"; }, []);
 
   return (
     <AuthShell
-      title="Start your free trial."
-      subtitle="14 days. No card required."
+      title="Request access."
+      subtitle="Salon OS is available by invitation only."
       footer={<>Already have an account? <Link to="/login" className="text-primary hover:underline">Sign in</Link></>}
     >
-      <form onSubmit={onSubmit} className="space-y-5">
-        <div className="space-y-2">
-          <Label>I am a…</Label>
-          <div className="grid grid-cols-3 gap-2">
-            {roles.map((r) => (
-              <button
-                type="button"
-                key={r.id}
-                onClick={() => setRole(r.id)}
-                className={cn(
-                  "rounded-lg border p-3 text-left transition-all",
-                  role === r.id
-                    ? "border-primary bg-primary/10"
-                    : "border-border bg-surface/50 hover:border-primary/40",
-                )}
-              >
-                <div className="text-sm font-medium text-foreground">{r.label}</div>
-                <div className="text-[11px] text-muted-foreground mt-1">{r.desc}</div>
-              </button>
-            ))}
-          </div>
+      <div className="space-y-6">
+        <div className="space-y-3">
+          {[
+            "Send us a WhatsApp message with your salon name and contact number",
+            "We'll review your request and reach out within 24 hours",
+            "Once approved, you'll receive your login credentials",
+            "Enjoy a 7-day free trial — no payment needed upfront",
+          ].map((step, i) => (
+            <div key={i} className="flex items-start gap-3">
+              <span className="h-5 w-5 rounded-full bg-primary/10 border border-primary/30 grid place-items-center text-[10px] font-bold text-primary shrink-0 mt-0.5">
+                {i + 1}
+              </span>
+              <p className="text-sm text-muted-foreground">{step}</p>
+            </div>
+          ))}
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="name">Full name</Label>
-          <Input id="name" required placeholder="Ava Rivers" />
+
+        <Button asChild variant="hero" size="lg" className="w-full">
+          <a href={waLink()} target="_blank" rel="noopener noreferrer">
+            WhatsApp us to get access
+          </a>
+        </Button>
+
+        <div className="glass-card rounded-xl p-4 space-y-2">
+          <p className="text-xs uppercase tracking-widest text-primary flex items-center gap-1.5">
+            <CheckCircle2 className="h-3.5 w-3.5" /> What's included in the trial
+          </p>
+          <ul className="text-xs text-muted-foreground space-y-1">
+            <li>• Full access to all features for 7 days</li>
+            <li>• Personal onboarding call with our team</li>
+            <li>• No credit card required</li>
+            <li>• Pricing quoted after the trial based on your needs</li>
+          </ul>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="email">Work email</Label>
-          <Input id="email" type="email" required placeholder="you@salon.com" />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
-          <Input id="password" type="password" required placeholder="At least 8 characters" />
-        </div>
-        <Button type="submit" variant="hero" size="lg" className="w-full">Create account</Button>
-      </form>
+      </div>
     </AuthShell>
   );
 };

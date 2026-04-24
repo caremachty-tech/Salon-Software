@@ -1,4 +1,4 @@
-import { NavLink, useLocation, Outlet, Link } from "react-router-dom";
+import { NavLink, useLocation, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Calendar, Users, Package, BarChart3, Receipt,
   Megaphone, Heart, Building2, Settings, Bell, Search, LogOut,
@@ -6,11 +6,13 @@ import {
 import { Logo } from "@/components/Logo";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 const nav = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard, end: true },
-  { to: "/dashboard/calendar", label: "Calendar", icon: Calendar },
+  { to: "/dashboard/calendar", label: "Appointments", icon: Calendar },
   { to: "/dashboard/staff", label: "Staff", icon: Users },
   { to: "/dashboard/customers", label: "Customers", icon: Heart },
   { to: "/dashboard/inventory", label: "Inventory", icon: Package },
@@ -22,7 +24,12 @@ const nav = [
 
 export const DashboardLayout = () => {
   const loc = useLocation();
+  const nav2 = useNavigate();
+  const { user, profile, salon, signOut } = useAuth();
   const current = nav.find((n) => (n.end ? loc.pathname === n.to : loc.pathname.startsWith(n.to)));
+  const initials = (user?.user_metadata?.full_name as string)?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "U";
+
+  const handleSignOut = async () => { await signOut(); nav2("/login"); };
 
   return (
     <div className="min-h-screen flex w-full bg-background">
@@ -52,12 +59,17 @@ export const DashboardLayout = () => {
           ))}
         </nav>
         <div className="p-3 border-t border-sidebar-border space-y-0.5">
+          <div className="px-3 py-2 mb-2">
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Logged in as</p>
+            <p className="text-xs text-foreground font-medium truncate">{profile?.full_name || user?.email}</p>
+            <Badge variant="outline" className="mt-1 text-[9px] h-4 uppercase">{profile?.role}</Badge>
+          </div>
           <NavLink to="/dashboard/settings" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-sidebar-foreground hover:bg-sidebar-accent">
             <Settings className="h-4 w-4" /> Settings
           </NavLink>
-          <Link to="/" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-sidebar-foreground hover:bg-sidebar-accent">
+          <button onClick={handleSignOut} className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-sidebar-foreground hover:bg-sidebar-accent">
             <LogOut className="h-4 w-4" /> Sign out
-          </Link>
+          </button>
         </div>
       </aside>
 
@@ -65,7 +77,7 @@ export const DashboardLayout = () => {
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-16 border-b border-border/50 flex items-center justify-between px-4 md:px-8 bg-background/80 backdrop-blur-xl sticky top-0 z-30">
           <div>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">Maven Studio · Downtown</p>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">{salon?.name || "Mane Magic Studio"}</p>
             <h1 className="font-display text-xl text-foreground -mt-0.5">{current?.label ?? "Dashboard"}</h1>
           </div>
           <div className="flex items-center gap-3">
@@ -77,7 +89,7 @@ export const DashboardLayout = () => {
               <Bell className="h-4 w-4" />
               <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-primary" />
             </Button>
-            <div className="h-9 w-9 rounded-full bg-gradient-gold grid place-items-center text-primary-foreground text-sm font-semibold">A</div>
+            <div className="h-9 w-9 rounded-full bg-gradient-gold grid place-items-center text-primary-foreground text-sm font-semibold">{initials}</div>
           </div>
         </header>
         <main className="flex-1 p-4 md:p-8 overflow-x-hidden">

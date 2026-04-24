@@ -1,14 +1,20 @@
 import { Badge } from "@/components/ui/badge";
 import { Heart, Crown } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+import { formatDistanceToNow } from "date-fns";
 
-const customers = [
-  { name: "Olivia Park", visits: 28, last: "3 days ago", spend: "$3,420", tag: "VIP" },
-  { name: "James Reid", visits: 14, last: "1 week ago", spend: "$840", tag: "Regular" },
-  { name: "Sara Lin", visits: 22, last: "2 days ago", spend: "$2,180", tag: "VIP" },
-  { name: "Theo Vance", visits: 6, last: "3 weeks ago", spend: "$420", tag: "At risk" },
-  { name: "Ava Wells", visits: 19, last: "5 days ago", spend: "$2,940", tag: "VIP" },
-  { name: "Marco Cole", visits: 4, last: "2 months ago", spend: "$210", tag: "At risk" },
-];
+import { useAuth } from "@/context/AuthContext";
+
+type Customer = {
+  id: string;
+  name: string;
+  visits: number;
+  last_visit_at: string | null;
+  lifetime_spend: number;
+  tag: "VIP" | "Regular" | "At risk";
+};
 
 const tagStyle: Record<string, string> = {
   VIP: "border-primary/40 text-primary bg-primary/10",
@@ -16,59 +22,97 @@ const tagStyle: Record<string, string> = {
   "At risk": "border-destructive/40 text-destructive bg-destructive/10",
 };
 
-const CustomersPage = () => (
-  <div className="space-y-6 animate-fade-in">
-    <div>
-      <h2 className="font-display text-3xl text-foreground">Customers</h2>
-      <p className="text-sm text-muted-foreground">Visit history, style memory, loyalty intelligence.</p>
-    </div>
+const CustomersPage = () => {
+  const { salon, loading: authLoading } = useAuth();
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [fetching, setFetching] = useState(false);
+  const [vipCount, setVipCount] = useState(0);
+  const [atRiskCount, setAtRiskCount] = useState(0);
 
-    <div className="grid gap-4 md:grid-cols-3">
-      <div className="glass-card rounded-xl p-5">
-        <div className="flex items-center gap-2 text-primary mb-2"><Crown className="h-4 w-4" /><p className="text-xs uppercase tracking-widest">VIP segment</p></div>
-        <p className="font-display text-3xl text-foreground">182</p>
-        <p className="text-xs text-muted-foreground mt-1">Top 12% by spend</p>
-      </div>
-      <div className="glass-card rounded-xl p-5">
-        <div className="flex items-center gap-2 text-success mb-2"><Heart className="h-4 w-4" /><p className="text-xs uppercase tracking-widest">Retention 90d</p></div>
-        <p className="font-display text-3xl text-foreground">74%</p>
-        <p className="text-xs text-muted-foreground mt-1">+6pts vs last quarter</p>
-      </div>
-      <div className="glass-card rounded-xl p-5">
-        <div className="flex items-center gap-2 text-destructive mb-2"><Heart className="h-4 w-4" /><p className="text-xs uppercase tracking-widest">Churn risks</p></div>
-        <p className="font-display text-3xl text-foreground">23</p>
-        <p className="text-xs text-muted-foreground mt-1">AI-flagged this week</p>
-      </div>
-    </div>
+  useEffect(() => {
+    if (!authLoading && salon?.id) {
+      setFetching(true);
+      supabase
+        .from("customers")
+        .select("*")
+        .eq("salon_id", salon.id)
+        .order("lifetime_spend", { ascending: false })
+        .then(({ data, error }) => {
+          if (error) toast.error(error.message);
+          else {
+            const rows = (data ?? []) as Customer[];
+            setCustomers(rows);
+            setVipCount(rows.filter((c) => c.tag === "VIP").length);
+            setAtRiskCount(rows.filter((c) => c.tag === "At risk").length);
+          }
+          setFetching(false);
+        });
+    }
+  }, [salon?.id, authLoading]);
 
-    <div className="glass-card rounded-xl p-6">
-      <h3 className="font-display text-2xl text-foreground mb-4">Recent activity</h3>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="text-xs uppercase tracking-widest text-muted-foreground">
-            <tr className="border-b border-border/50">
-              <th className="text-left py-3 font-medium">Customer</th>
-              <th className="text-left py-3 font-medium">Visits</th>
-              <th className="text-left py-3 font-medium">Last visit</th>
-              <th className="text-left py-3 font-medium">Lifetime spend</th>
-              <th className="text-left py-3 font-medium">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {customers.map((c) => (
-              <tr key={c.name} className="border-b border-border/30 hover:bg-surface/50">
-                <td className="py-3 text-foreground">{c.name}</td>
-                <td className="py-3 text-muted-foreground">{c.visits}</td>
-                <td className="py-3 text-muted-foreground">{c.last}</td>
-                <td className="py-3 text-foreground">{c.spend}</td>
-                <td className="py-3"><Badge variant="outline" className={tagStyle[c.tag]}>{c.tag}</Badge></td>
+  const isLoading = authLoading || (salon?.id && fetching && customers.length === 0);
+
+  const retention = customers.length
+    ? Math.round((customers.filter((c) => c.tag !== "At risk").length / customers.length) * 100)
+    : 0;
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div>
+        <h2 className="font-display text-3xl text-foreground">Customers</h2>
+        <p className="text-sm text-muted-foreground">Visit history, style memory, loyalty intelligence.</p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="glass-card rounded-xl p-5">
+          <div className="flex items-center gap-2 text-primary mb-2"><Crown className="h-4 w-4" /><p className="text-xs uppercase tracking-widest">VIP segment</p></div>
+          <p className="font-display text-3xl text-foreground">{vipCount}</p>
+          <p className="text-xs text-muted-foreground mt-1">Top clients by spend</p>
+        </div>
+        <div className="glass-card rounded-xl p-5">
+          <div className="flex items-center gap-2 text-success mb-2"><Heart className="h-4 w-4" /><p className="text-xs uppercase tracking-widest">Retention</p></div>
+          <p className="font-display text-3xl text-foreground">{retention}%</p>
+          <p className="text-xs text-muted-foreground mt-1">Active clients</p>
+        </div>
+        <div className="glass-card rounded-xl p-5">
+          <div className="flex items-center gap-2 text-destructive mb-2"><Heart className="h-4 w-4" /><p className="text-xs uppercase tracking-widest">Churn risks</p></div>
+          <p className="font-display text-3xl text-foreground">{atRiskCount}</p>
+          <p className="text-xs text-muted-foreground mt-1">Flagged clients</p>
+        </div>
+      </div>
+
+      <div className="glass-card rounded-xl p-6">
+        <h3 className="font-display text-2xl text-foreground mb-4">All customers</h3>
+        {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-xs uppercase tracking-widest text-muted-foreground">
+              <tr className="border-b border-border/50">
+                <th className="text-left py-3 font-medium">Customer</th>
+                <th className="text-left py-3 font-medium">Visits</th>
+                <th className="text-left py-3 font-medium">Last visit</th>
+                <th className="text-left py-3 font-medium">Lifetime spend</th>
+                <th className="text-left py-3 font-medium">Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {customers.map((c) => (
+                <tr key={c.id} className="border-b border-border/30 hover:bg-surface/50">
+                  <td className="py-3 text-foreground">{c.name}</td>
+                  <td className="py-3 text-muted-foreground">{c.visits}</td>
+                  <td className="py-3 text-muted-foreground">
+                    {c.last_visit_at ? formatDistanceToNow(new Date(c.last_visit_at), { addSuffix: true }) : "—"}
+                  </td>
+                  <td className="py-3 text-foreground">${c.lifetime_spend.toLocaleString()}</td>
+                  <td className="py-3"><Badge variant="outline" className={tagStyle[c.tag]}>{c.tag}</Badge></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default CustomersPage;

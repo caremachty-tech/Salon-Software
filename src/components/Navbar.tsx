@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Logo } from "./Logo";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { waLink } from "@/lib/constants";
 
 const links = [
   { label: "Features", href: "#features" },
-  { label: "Pricing", href: "#pricing" },
   { label: "AI Suite", href: "#ai" },
   { label: "Book a Cut", href: "/book" },
 ];
@@ -53,7 +53,7 @@ export const Navbar = () => {
             <Link to="/login">Sign in</Link>
           </Button>
           <Button asChild variant="hero" size="sm">
-            <Link to="/signup">Start free trial</Link>
+            <a href={waLink()} target="_blank" rel="noopener noreferrer">Request access</a>
           </Button>
         </div>
         <button className="md:hidden text-foreground" onClick={() => setOpen((v) => !v)} aria-label="Toggle menu">
@@ -73,7 +73,7 @@ export const Navbar = () => {
                 <Link to="/login">Sign in</Link>
               </Button>
               <Button asChild variant="hero">
-                <Link to="/signup">Start free trial</Link>
+                <a href={waLink()} target="_blank" rel="noopener noreferrer">Request access</a>
               </Button>
             </div>
           </div>

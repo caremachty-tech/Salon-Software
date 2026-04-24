@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { ArrowRight, Sparkles } from "lucide-react";
 import heroImg from "@/assets/hero-salon.jpg";
+import { waLink } from "@/lib/constants";
 
 export const Hero = () => (
   <section className="relative min-h-[100svh] flex items-center overflow-hidden noise">
@@ -28,12 +29,15 @@ export const Hero = () => (
 
         <div className="flex flex-wrap gap-3 animate-fade-in" style={{ animationDelay: "360ms" }}>
           <Button asChild variant="hero" size="xl">
-            <Link to="/signup">
-              Start free trial <ArrowRight className="ml-1" />
-            </Link>
+            <a href={waLink()} target="_blank" rel="noopener noreferrer">
+              Request access <ArrowRight className="ml-1" />
+            </a>
           </Button>
           <Button asChild variant="glass" size="xl">
             <Link to="/book">See booking demo</Link>
+          </Button>
+          <Button asChild variant="outline" size="xl">
+            <Link to="/hairstyle-studio"><Sparkles className="h-4 w-4 mr-1" /> Try Hairstyle Studio</Link>
           </Button>
         </div>
 

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { waLink } from "@/lib/constants";
 
 export const CTA = () => (
   <section className="container py-24">
@@ -10,15 +10,22 @@ export const CTA = () => (
         <h2 className="font-display text-5xl md:text-6xl text-foreground leading-tight">
           Ready to run your salon <span className="italic text-gradient-gold">like a maestro?</span>
         </h2>
-        <p className="text-muted-foreground text-lg">Join thousands of owners using Salon OS to grow revenue, retain clients, and reclaim their evenings.</p>
+        <p className="text-muted-foreground text-lg">
+          Access is by invitation only. Message us on WhatsApp and we'll get you set up with a 7-day free trial.
+        </p>
         <div className="flex flex-wrap gap-3 justify-center pt-2">
           <Button asChild variant="hero" size="xl">
-            <Link to="/signup">Start free trial <ArrowRight className="ml-1" /></Link>
+            <a href={waLink()} target="_blank" rel="noopener noreferrer">
+              WhatsApp us to request access
+            </a>
           </Button>
           <Button asChild variant="glass" size="xl">
             <Link to="/book">Try the booking flow</Link>
           </Button>
         </div>
+        <p className="text-xs text-muted-foreground pt-2">
+          We'll review your request and reach out within 24 hours.
+        </p>
       </div>
     </div>
   </section>

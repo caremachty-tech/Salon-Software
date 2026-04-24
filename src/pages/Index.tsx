@@ -6,6 +6,7 @@ import { AISuite } from "@/components/landing/AISuite";
 import { Pricing } from "@/components/landing/Pricing";
 import { Testimonials } from "@/components/landing/Testimonials";
 import { CTA } from "@/components/landing/CTA";
+import { DemoPopup } from "@/components/landing/DemoPopup";
 import { useEffect } from "react";
 
 const Index = () => {
@@ -22,6 +23,7 @@ const Index = () => {
 
   return (
     <main>
+      <DemoPopup />
       <Navbar />
       <Hero />
       <Features />
