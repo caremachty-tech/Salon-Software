@@ -7,6 +7,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: true,
+    storageKey: "salon-os-auth",
+    lock: async (_name, _acquireTimeout, fn) => fn(),
   },
 });
