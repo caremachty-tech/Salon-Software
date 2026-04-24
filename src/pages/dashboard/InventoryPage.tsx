@@ -1,47 +1,61 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { AlertTriangle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertTriangle, Plus } from "lucide-react";
+import { useData } from "@/context/DataContext";
+import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
-type InventoryItem = {
-  id: string;
-  sku: string;
-  name: string;
-  stock: number;
-  par_level: number;
-  unit_cost: number;
+const getStatus = (stock: number, par: number) => {
+  const r = stock / par;
+  if (r < 0.2) return "critical";
+  if (r < 0.5) return "low";
+  return "healthy";
 };
 
 const InventoryPage = () => {
-  const [items, setItems] = useState<InventoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { inventory, loading, refresh } = useData();
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ sku: "", name: "", stock: "", par_level: "", unit_cost: "" });
 
-  useEffect(() => {
-    supabase.from("inventory").select("*").order("name")
-      .then(({ data, error }) => {
-        if (error) toast.error(error.message);
-        else setItems(data ?? []);
-        setLoading(false);
-      });
-  }, []);
+  const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
-  const critical = items.filter((i) => i.stock / i.par_level < 0.2);
-  const low = items.filter((i) => i.stock / i.par_level >= 0.2 && i.stock / i.par_level < 0.5);
-
-  const getStatus = (item: InventoryItem) => {
-    const ratio = item.stock / item.par_level;
-    if (ratio < 0.2) return "critical";
-    if (ratio < 0.5) return "low";
-    return "healthy";
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    const { error } = await supabase.from("inventory").insert({
+      sku: form.sku,
+      name: form.name,
+      stock: parseInt(form.stock),
+      par_level: parseInt(form.par_level),
+      unit_cost: parseFloat(form.unit_cost),
+    });
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Inventory item added.");
+    setOpen(false);
+    setForm({ sku: "", name: "", stock: "", par_level: "", unit_cost: "" });
+    refresh();
   };
+
+  if (loading) return <div className="space-y-3">{[1,2,3,4].map(i=><div key={i} className="flex gap-4 py-3 border-b border-border/30 animate-pulse"><div className="h-4 bg-muted rounded w-1/4"/><div className="h-4 bg-muted rounded w-1/4"/><div className="h-4 bg-muted rounded w-1/4"/><div className="h-4 bg-muted rounded w-1/4"/></div>)}</div>;
+
+  const critical = inventory.filter((i) => getStatus(i.stock, i.par_level) === "critical");
+  const low = inventory.filter((i) => getStatus(i.stock, i.par_level) === "low");
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h2 className="font-display text-3xl text-foreground">Inventory</h2>
-        <p className="text-sm text-muted-foreground">Live stock counts. Alerts when supplies run low.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-display text-3xl text-foreground">Inventory</h2>
+          <p className="text-sm text-muted-foreground">Live stock counts. Alerts when supplies run low.</p>
+        </div>
+        <Button variant="hero" onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Add item</Button>
       </div>
 
       {(critical.length > 0 || low.length > 0) && (
@@ -53,8 +67,6 @@ const InventoryPage = () => {
           </div>
         </div>
       )}
-
-      {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
 
       <div className="glass-card rounded-xl p-6">
         <div className="overflow-x-auto">
@@ -69,12 +81,12 @@ const InventoryPage = () => {
               </tr>
             </thead>
             <tbody>
-              {!loading && items.length === 0 && (
+              {inventory.length === 0 && (
                 <tr><td colSpan={5} className="py-6 text-center text-muted-foreground text-sm">No inventory items found.</td></tr>
               )}
-              {items.map((it) => {
+              {inventory.map((it) => {
                 const pct = Math.min(100, (it.stock / it.par_level) * 100);
-                const status = getStatus(it);
+                const status = getStatus(it.stock, it.par_level);
                 return (
                   <tr key={it.id} className="border-b border-border/30">
                     <td className="py-4 font-mono text-xs text-muted-foreground">{it.sku}</td>
@@ -85,7 +97,7 @@ const InventoryPage = () => {
                         <span className="text-xs text-muted-foreground tabular-nums w-16">{it.stock}/{it.par_level}</span>
                       </div>
                     </td>
-                    <td className="py-4 text-foreground">${it.unit_cost}</td>
+                    <td className="py-4 text-foreground">₹{it.unit_cost}</td>
                     <td className="py-4">
                       {status === "critical" && <Badge variant="outline" className="border-destructive/40 text-destructive bg-destructive/10">Critical</Badge>}
                       {status === "low" && <Badge variant="outline" className="border-warning/40 text-warning">Low</Badge>}
@@ -98,6 +110,27 @@ const InventoryPage = () => {
           </table>
         </div>
       </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle className="font-display text-2xl">Add inventory item</DialogTitle></DialogHeader>
+          <form onSubmit={onSubmit} className="space-y-4 pt-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5"><Label>SKU</Label><Input required placeholder="SH-001" value={form.sku} onChange={(e) => set("sku", e.target.value)} /></div>
+              <div className="space-y-1.5"><Label>Item name</Label><Input required placeholder="Argan Oil 500ml" value={form.name} onChange={(e) => set("name", e.target.value)} /></div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5"><Label>Stock</Label><Input required type="number" min="0" placeholder="12" value={form.stock} onChange={(e) => set("stock", e.target.value)} /></div>
+              <div className="space-y-1.5"><Label>Par level</Label><Input required type="number" min="1" placeholder="24" value={form.par_level} onChange={(e) => set("par_level", e.target.value)} /></div>
+              <div className="space-y-1.5"><Label>Unit cost ₹</Label><Input required type="number" min="0" step="0.01" placeholder="12.00" value={form.unit_cost} onChange={(e) => set("unit_cost", e.target.value)} /></div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button type="submit" variant="hero" className="flex-1" disabled={saving}>{saving ? "Saving…" : "Add item"}</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

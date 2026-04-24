@@ -50,34 +50,47 @@ const Book = () => {
 
   const handleBooking = async () => {
     if (!selectedSalon || !selectedService || !selectedStaff || !selectedDate || !selectedTime) return;
+    if (!customerInfo.name.trim()) { toast.error("Full name is required."); return; }
+    if (!customerInfo.phone.trim()) { toast.error("Phone number is required."); return; }
 
     try {
-      // 1. Find or create customer
-      const { data: customerData } = await supabase
-        .from("customers")
-        .select("id")
-        .eq("email", customerInfo.email)
-        .eq("salon_id", selectedSalon.id)
-        .single();
+      // Find by phone first, then email
+      let customerId: string | null = null;
 
-      let customerId = customerData?.id;
+      if (customerInfo.phone) {
+        const { data } = await supabase.from("customers").select("id")
+          .eq("salon_id", selectedSalon.id).eq("phone", customerInfo.phone.trim()).maybeSingle();
+        customerId = data?.id ?? null;
+      }
+      if (!customerId && customerInfo.email) {
+        const { data } = await supabase.from("customers").select("id")
+          .eq("salon_id", selectedSalon.id).eq("email", customerInfo.email).maybeSingle();
+        customerId = data?.id ?? null;
+      }
 
       if (!customerId) {
         const { data: newCustomer, error: custErr } = await supabase
           .from("customers")
           .insert({
             salon_id: selectedSalon.id,
-            name: customerInfo.name,
-            email: customerInfo.email,
-            phone: customerInfo.phone,
+            name: customerInfo.name.trim(),
+            email: customerInfo.email || null,
+            phone: customerInfo.phone.trim(),
             tag: "Regular",
             visits: 0,
             lifetime_spend: 0,
+            loyalty_points: 0,
           })
-          .select()
+          .select("id")
           .single();
         if (custErr) throw custErr;
         customerId = newCustomer.id;
+      } else {
+        await supabase.from("customers").update({
+          name: customerInfo.name.trim(),
+          ...(customerInfo.phone ? { phone: customerInfo.phone.trim() } : {}),
+          ...(customerInfo.email ? { email: customerInfo.email } : {}),
+        }).eq("id", customerId);
       }
 
       // 2. Create appointment
@@ -257,24 +270,26 @@ const Book = () => {
               <div className="space-y-3">
                 <input
                   type="text"
-                  placeholder="Full Name"
+                  required
+                  placeholder="Full Name *"
                   className="w-full bg-surface border border-border rounded-lg p-3 text-sm focus:ring-1 focus:ring-primary outline-none"
                   value={customerInfo.name}
                   onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
                 />
                 <input
-                  type="email"
-                  placeholder="Email Address"
-                  className="w-full bg-surface border border-border rounded-lg p-3 text-sm focus:ring-1 focus:ring-primary outline-none"
-                  value={customerInfo.email}
-                  onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })}
-                />
-                <input
                   type="tel"
-                  placeholder="Phone Number"
+                  required
+                  placeholder="Phone Number *"
                   className="w-full bg-surface border border-border rounded-lg p-3 text-sm focus:ring-1 focus:ring-primary outline-none"
                   value={customerInfo.phone}
                   onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
+                />
+                <input
+                  type="email"
+                  placeholder="Email Address (optional)"
+                  className="w-full bg-surface border border-border rounded-lg p-3 text-sm focus:ring-1 focus:ring-primary outline-none"
+                  value={customerInfo.email}
+                  onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })}
                 />
               </div>
             </div>

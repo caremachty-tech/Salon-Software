@@ -1,7 +1,7 @@
 import { NavLink, useLocation, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Calendar, Users, Package, BarChart3, Receipt,
-  Megaphone, Heart, Building2, Settings, Bell, Search, LogOut,
+  Megaphone, Heart, Building2, Settings, Bell, Search, LogOut, ClockArrowUp, Sparkles,
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { Input } from "@/components/ui/input";
@@ -15,8 +15,10 @@ const nav = [
   { to: "/dashboard/calendar", label: "Appointments", icon: Calendar },
   { to: "/dashboard/staff", label: "Staff", icon: Users },
   { to: "/dashboard/customers", label: "Customers", icon: Heart },
+  { to: "/dashboard/ai-recommendations", label: "AI Recommendations", icon: Sparkles },
   { to: "/dashboard/inventory", label: "Inventory", icon: Package },
   { to: "/dashboard/billing", label: "Billing & POS", icon: Receipt },
+  { to: "/dashboard/history", label: "History", icon: ClockArrowUp },
   { to: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/dashboard/marketing", label: "Marketing", icon: Megaphone },
   { to: "/dashboard/branches", label: "Branches", icon: Building2 },
@@ -64,7 +66,7 @@ export const DashboardLayout = () => {
             <p className="text-xs text-foreground font-medium truncate">{profile?.full_name || user?.email}</p>
             <Badge variant="outline" className="mt-1 text-[9px] h-4 uppercase">{profile?.role}</Badge>
           </div>
-          <NavLink to="/dashboard/settings" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-sidebar-foreground hover:bg-sidebar-accent">
+          <NavLink to="/dashboard/setup" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-sidebar-foreground hover:bg-sidebar-accent">
             <Settings className="h-4 w-4" /> Settings
           </NavLink>
           <button onClick={handleSignOut} className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-sidebar-foreground hover:bg-sidebar-accent">
