@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { useState } from "react";
+import { useData } from "@/context/DataContext";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, History } from "lucide-react";
@@ -16,24 +16,12 @@ type HistoryRecord = {
 };
 
 const HistoryPage = () => {
-  const [records, setRecords] = useState<HistoryRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { appointments, loading } = useData();
   const [search, setSearch] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
 
-  useEffect(() => {
-    supabase
-      .from("appointments")
-      .select("id, scheduled_at, total_price, notes, customers(name, phone), services(name), staff(name)")
-      .eq("status", "completed")
-      .order("scheduled_at", { ascending: false })
-      .limit(200)
-      .then(({ data, error }) => {
-        if (!error) setRecords((data ?? []) as unknown as HistoryRecord[]);
-        setLoading(false);
-      });
-  }, []);
+  const records = appointments.filter((a) => a.status === "completed") as unknown as HistoryRecord[];
 
   const filtered = records.filter((r) => {
     const q = search.toLowerCase();

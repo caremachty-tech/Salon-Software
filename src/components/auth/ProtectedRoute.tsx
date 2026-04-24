@@ -14,8 +14,11 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-muted-foreground text-sm">
-        Loading…
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="space-y-3 text-center">
+          <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto" />
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        </div>
       </div>
     );
   }
@@ -24,8 +27,12 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Mandatory salon profile setup for owners
-  if (profile?.role === "owner" && (!salon || !salon.is_profile_complete) && location.pathname !== "/dashboard/setup") {
+  // Wait until profile has loaded before making any redirect decisions
+  if (!profile) return <>{children}</>;
+
+  // Only redirect to setup when salon is confirmed loaded AND incomplete
+  const isSetupPage = location.pathname === "/dashboard/setup";
+  if (profile.role === "owner" && salon !== null && !salon.is_profile_complete && !isSetupPage) {
     return <Navigate to="/dashboard/setup" replace />;
   }
 

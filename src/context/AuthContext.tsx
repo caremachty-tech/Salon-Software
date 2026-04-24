@@ -106,31 +106,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     let mounted = true;
 
-    // Use onAuthStateChange as the primary source of truth. 
-    // It triggers immediately with the current session on subscription.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, s) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
       if (!mounted) return;
 
-      try {
-        setSession(s);
-        
-        if (s?.user) {
-          await fetchProfileAndSalon(s.user);
-        } else {
-          setProfile(null);
-          setSalon(null);
-        }
-      } catch (error: any) {
-        // Catch the specific "lock stolen" or "AbortError" to prevent UI crashes
-        if (error?.name === 'AbortError' || error?.message?.includes('lock')) {
-          console.warn("Auth lock contention handled:", error.message);
-        } else {
-          console.error("Auth state change error:", error);
-        }
-      } finally {
-        if (mounted && (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "SIGNED_OUT")) {
-          setLoading(false);
-        }
+      setSession(s);
+
+      // Set loading false immediately — never block the UI on profile fetch
+      if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "SIGNED_OUT") {
+        setLoading(false);
+      }
+
+      // Fetch profile in background — fire and forget
+      if (s?.user) {
+        fetchProfileAndSalon(s.user).catch((err) => {
+          if (err?.name !== "AbortError" && !err?.message?.includes("lock")) {
+            console.error("Profile fetch error:", err);
+          }
+        });
+      } else {
+        setProfile(null);
+        setSalon(null);
       }
     });
 
