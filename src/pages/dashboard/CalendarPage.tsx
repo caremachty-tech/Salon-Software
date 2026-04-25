@@ -71,7 +71,10 @@ const CalendarPage = () => {
   const pending = appointments.filter((a) => a.status === "pending").length;
   const liveAppointments = appointments.filter((a) => {
     if (a.status !== "confirmed" && a.status !== "pending") return false;
-    if (new Date(a.scheduled_at) < new Date()) return false;
+    // Show today's appointments regardless of time, plus all future ones
+    const apptDate = a.scheduled_at.split("T")[0];
+    const today = new Date().toISOString().split("T")[0];
+    if (apptDate < today) return false;
     const date = a.scheduled_at.split("T")[0];
     if (from && date < from) return false;
     if (to && date > to) return false;
