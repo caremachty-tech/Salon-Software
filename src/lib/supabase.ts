@@ -8,6 +8,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
-    storageKey: 'mane-magic-auth-token', // Unique key to avoid collisions
+    storageKey: "salon-os-auth",
+    lock: async (_name, _acquireTimeout, fn) => fn(),
   },
 });
