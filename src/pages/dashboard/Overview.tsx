@@ -1,16 +1,13 @@
 import { StatCard } from "@/components/dashboard/StatCard";
-import { DollarSign, Users, Calendar, TrendingUp, Trash2, Phone, Mail, Scissors } from "lucide-react";
+import { DollarSign, Users, Calendar, TrendingUp, UserPlus } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, BarChart, Bar } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { useData } from "@/context/DataContext";
-import { Appointment } from "@/context/DataContext";
-import { SkeletonStat, SkeletonRow } from "@/components/dashboard/Skeletons";
-import { format } from "date-fns";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
+import { format } from "date-fns";
+import WalkInModal from "@/components/dashboard/WalkInModal";
 
 const peak = [
   { h: "9a", b: 4 }, { h: "10a", b: 7 }, { h: "11a", b: 9 }, { h: "12p", b: 12 },
@@ -18,46 +15,99 @@ const peak = [
   { h: "5p", b: 18 }, { h: "6p", b: 13 }, { h: "7p", b: 7 },
 ];
 
-const statusColor: Record<string, string> = {
-  confirmed: "border-success/40 text-success",
-  pending: "border-warning/30 text-warning",
+type Appointment = {
+  id: string;
+  scheduled_at: string;
+  total_price: number;
+  customers: { name: string } | null;
+  services: { name: string } | null;
+  staff: { name: string } | null;
 };
 
+type RevenueDay = { date: string; amount: number };
+
 const Overview = () => {
-  const { revenue, appointments, customers, loading, refresh } = useData();
-  const [selected, setSelected] = useState<Appointment | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const { salon } = useAuth();
+  const [revenue, setRevenue] = useState<{ d: string; v: number }[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [todayRevenue, setTodayRevenue] = useState(0);
+  const [apptCount, setApptCount] = useState(0);
+  const [newClients, setNewClients] = useState(0);
+  const [avgTicket, setAvgTicket] = useState(0);
+  const [isWalkInModalOpen, setIsWalkInModalOpen] = useState(false);
 
-  const today = new Date().toISOString().split("T")[0];
-  const todayAppointments = appointments.filter(
-    (a) => a.scheduled_at.startsWith(today) && (a.status === "confirmed" || a.status === "pending")
-  );
-  const todayRevenue = revenue.find((r) => r.date === today)?.amount ?? 0;
-  const avgTicket = todayAppointments.length
-    ? Math.round(todayAppointments.reduce((s, a) => s + (a.total_price ?? 0), 0) / todayAppointments.length)
-    : 0;
-  const newClients = customers.filter((c) => c.last_visit_at?.startsWith(today)).length;
-  const chartData = revenue.slice(-7).map((r) => ({ d: format(new Date(r.date), "EEE"), v: r.amount }));
+  const fetchData = async () => {
+    if (!salon?.id) return;
 
-  const handleDelete = async (id: string) => {
-    setDeleting(true);
-    const { error } = await supabase.from("appointments").delete().eq("id", id);
-    setDeleting(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Appointment deleted.");
-    setSelected(null);
-    refresh();
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const { data: rev } = await supabase
+      .from("revenue_daily")
+      .select("date, amount")
+      .eq("salon_id", salon.id)
+      .order("date", { ascending: true })
+      .limit(7);
+    if (rev) {
+      setRevenue((rev as RevenueDay[]).map((r) => ({ d: format(new Date(r.date), "EEE"), v: r.amount })));
+      const todayRow = (rev as RevenueDay[]).find((r) => {
+        const rowDate = new Date(r.date);
+        return rowDate >= startOfDay && rowDate <= endOfDay;
+      });
+      setTodayRevenue(todayRow?.amount ?? 0);
+    }
+
+    const { data: appts } = await supabase
+      .from("appointments")
+      .select("id, scheduled_at, total_price, customers(name), services(name), staff(name)")
+      .eq("salon_id", salon.id)
+      .gte("scheduled_at", startOfDay.toISOString())
+      .lte("scheduled_at", endOfDay.toISOString())
+      .order("scheduled_at", { ascending: true });
+    if (appts) {
+      setAppointments(appts as unknown as Appointment[]);
+      setApptCount(appts.length);
+      const prices = (appts as { total_price: number }[]).map((a) => a.total_price ?? 0).filter(Boolean);
+      setAvgTicket(prices.length ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) : 0);
+    }
+
+    const { count } = await supabase
+      .from("customers")
+      .select("id", { count: "exact", head: true })
+      .eq("salon_id", salon.id)
+      .gte("created_at", startOfDay.toISOString());
+    setNewClients(count ?? 0);
   };
+
+  useEffect(() => {
+    fetchData();
+  }, [salon?.id]);
 
   return (
     <div className="space-y-8 animate-fade-in">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-display text-3xl text-foreground">Overview</h2>
+          <p className="text-sm text-muted-foreground">Live intelligence for {salon?.name}.</p>
+        </div>
+        <Button variant="hero" onClick={() => setIsWalkInModalOpen(true)}>
+          <UserPlus className="h-4 w-4 mr-2" /> Register Walk-in
+        </Button>
+      </div>
+
+      <WalkInModal 
+        open={isWalkInModalOpen} 
+        onOpenChange={setIsWalkInModalOpen} 
+        onSuccess={fetchData} 
+      />
+
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        {loading ? <><SkeletonStat /><SkeletonStat /><SkeletonStat /><SkeletonStat /></> : <>
-          <StatCard label="Today's Revenue" value={`₹${todayRevenue.toLocaleString()}`} delta="live" icon={<DollarSign className="h-4 w-4" />} />
-          <StatCard label="Appointments" value={String(todayAppointments.length)} delta="today" icon={<Calendar className="h-4 w-4" />} />
-          <StatCard label="New Clients" value={String(newClients)} delta="today" icon={<Users className="h-4 w-4" />} />
-          <StatCard label="Avg Ticket" value={`₹${avgTicket}`} delta="today" icon={<TrendingUp className="h-4 w-4" />} />
-        </>}
+        <StatCard label="Today's Revenue" value={`$${todayRevenue.toLocaleString()}`} delta="live" icon={<DollarSign className="h-4 w-4" />} />
+        <StatCard label="Appointments" value={String(apptCount)} delta="today" icon={<Calendar className="h-4 w-4" />} />
+        <StatCard label="New Clients" value={String(newClients)} delta="today" icon={<Users className="h-4 w-4" />} />
+        <StatCard label="Avg Ticket" value={`$${avgTicket}`} delta="today" icon={<TrendingUp className="h-4 w-4" />} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -70,7 +120,7 @@ const Overview = () => {
             <Badge variant="outline" className="border-primary/30 text-primary">Live</Badge>
           </div>
           <ResponsiveContainer width="100%" height={260}>
-            <AreaChart data={chartData}>
+            <AreaChart data={revenue}>
               <defs>
                 <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.5} />
@@ -101,8 +151,12 @@ const Overview = () => {
       </div>
 
       <div className="glass-card rounded-xl p-6">
-        <h3 className="font-display text-2xl text-foreground mb-1">Today's appointments</h3>
-        <p className="text-xs text-muted-foreground mb-4">Click a row to view details · Live schedule</p>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-display text-2xl text-foreground">Today's appointments</h3>
+            <p className="text-xs text-muted-foreground">Live schedule across all chairs</p>
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-xs uppercase tracking-widest text-muted-foreground">
@@ -111,69 +165,26 @@ const Overview = () => {
                 <th className="text-left py-3 font-medium">Client</th>
                 <th className="text-left py-3 font-medium">Service</th>
                 <th className="text-left py-3 font-medium">Stylist</th>
-                <th className="text-left py-3 font-medium">Status</th>
                 <th className="text-right py-3 font-medium">Total</th>
               </tr>
             </thead>
             <tbody>
-              {loading && [1,2,3].map(i => <tr key={i}><td colSpan={6}><SkeletonRow /></td></tr>)}
-              {!loading && todayAppointments.length === 0 && <tr><td colSpan={6} className="py-6 text-center text-muted-foreground text-sm">No appointments today.</td></tr>}
-              {todayAppointments.map((a) => (
-                <tr key={a.id} onClick={() => setSelected(a)} className="border-b border-border/30 hover:bg-surface/50 transition-colors cursor-pointer">
+              {appointments.length === 0 && (
+                <tr><td colSpan={5} className="py-6 text-center text-muted-foreground text-sm">No appointments today.</td></tr>
+              )}
+              {appointments.map((a) => (
+                <tr key={a.id} className="border-b border-border/30 hover:bg-surface/50 transition-colors">
                   <td className="py-3 font-mono text-primary">{format(new Date(a.scheduled_at), "HH:mm")}</td>
                   <td className="py-3 text-foreground">{a.customers?.name ?? "—"}</td>
                   <td className="py-3 text-muted-foreground">{a.services?.name ?? "—"}</td>
                   <td className="py-3 text-muted-foreground">{a.staff?.name ?? "—"}</td>
-                  <td className="py-3"><Badge variant="outline" className={`text-xs ${statusColor[a.status] ?? ""}`}>{a.status}</Badge></td>
-                  <td className="py-3 text-right text-foreground font-medium">₹{a.total_price ?? "—"}</td>
+                  <td className="py-3 text-right text-foreground font-medium">${a.total_price ?? "—"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
-
-      {/* Appointment detail sheet */}
-      <Sheet open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <SheetContent className="w-full sm:max-w-sm">
-          {selected && (
-            <>
-              <SheetHeader className="pb-4 border-b border-border/40">
-                <div className="flex items-start justify-between">
-                  <SheetTitle className="font-display text-2xl">Appointment</SheetTitle>
-                  <Badge variant="outline" className={`text-xs ${statusColor[selected.status] ?? ""}`}>{selected.status}</Badge>
-                </div>
-                <p className="text-xs text-muted-foreground">{format(new Date(selected.scheduled_at), "MMM d, yyyy · HH:mm")}</p>
-              </SheetHeader>
-              <div className="pt-5 space-y-5">
-                <div className="space-y-2">
-                  <p className="text-xs uppercase tracking-widest text-muted-foreground">Customer</p>
-                  <div className="glass-card rounded-xl p-4 space-y-2">
-                    <p className="text-foreground font-medium">{selected.customers?.name ?? "—"}</p>
-                    {selected.customers?.phone && <p className="text-sm text-muted-foreground flex items-center gap-2"><Phone className="h-3.5 w-3.5" />{selected.customers.phone}</p>}
-                    {selected.customers?.email && <p className="text-sm text-muted-foreground flex items-center gap-2"><Mail className="h-3.5 w-3.5" />{selected.customers.email}</p>}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-xs uppercase tracking-widest text-muted-foreground">Service</p>
-                  <div className="glass-card rounded-xl p-4 space-y-1">
-                    <p className="text-foreground font-medium flex items-center gap-2"><Scissors className="h-3.5 w-3.5 text-primary" />{selected.services?.name ?? "—"}</p>
-                    {selected.services?.duration_min && <p className="text-xs text-muted-foreground">{selected.services.duration_min} min</p>}
-                    {selected.staff?.name && <p className="text-xs text-muted-foreground">Stylist: {selected.staff.name}</p>}
-                  </div>
-                </div>
-                <div className="glass-card rounded-xl p-4 flex justify-between items-center">
-                  <p className="text-sm text-muted-foreground">Amount</p>
-                  <p className="font-display text-xl text-gradient-gold">₹{selected.total_price}</p>
-                </div>
-                <Button variant="outline" className="w-full border-destructive/40 text-destructive hover:bg-destructive/10" disabled={deleting} onClick={() => handleDelete(selected.id)}>
-                  <Trash2 className="h-4 w-4 mr-2" />{deleting ? "Deleting…" : "Delete appointment"}
-                </Button>
-              </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
     </div>
   );
 };
