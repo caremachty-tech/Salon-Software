@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Star, Plus, Mail, Lock, Eye, EyeOff, Users } from "lucide-react";
+import { Star, Plus, Mail, Lock, Eye, EyeOff, Users, Trash2 } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 import { Staff } from "@/context/DataContext";
@@ -20,6 +20,18 @@ const StaffPage = () => {
   const [saving, setSaving] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [selected, setSelected] = useState<Staff | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const onDeleteStaff = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Delete this staff member? This cannot be undone.")) return;
+    setDeletingId(id);
+    const { error } = await supabase.from("staff").delete().eq("id", id);
+    setDeletingId(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Staff member deleted.");
+    refresh();
+  };
   const [form, setForm] = useState({ name: "", role: "", email: "", password: "", rating: "5.0", commission_pct: "35" });
 
   const set = (k: string, v: string) => setForm((p) => ({ ...p, [k]: v }));
@@ -70,7 +82,7 @@ const StaffPage = () => {
           <div
             key={s.id}
             onClick={() => setSelected(s)}
-            className="glass-card rounded-xl overflow-hidden hover:border-primary/40 transition-all hover:-translate-y-1 group cursor-pointer"
+            className="glass-card rounded-xl overflow-hidden hover:border-primary/40 transition-all hover:-translate-y-1 group cursor-pointer relative"
           >
             {s.img_url ? (
               <div className="aspect-[4/3] overflow-hidden bg-surface">
@@ -97,6 +109,13 @@ const StaffPage = () => {
                 <div><p className="text-[10px] uppercase tracking-widest text-muted-foreground">Comm</p><p className="font-display text-xl text-foreground">{s.commission_pct}%</p></div>
               </div>
               <p className="text-[10px] text-muted-foreground text-center pb-1 opacity-0 group-hover:opacity-100 transition-opacity">Click to view customers</p>
+              <button
+                onClick={(e) => onDeleteStaff(s.id, e)}
+                disabled={deletingId === s.id}
+                className="absolute top-2 right-2 h-7 w-7 rounded-lg bg-background/80 border border-border/50 grid place-items-center text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-40"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
             </div>
           </div>
         ))}
