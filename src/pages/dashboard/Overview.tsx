@@ -104,10 +104,10 @@ const Overview = () => {
       />
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Today's Revenue" value={`₹${todayRevenue.toLocaleString()}`} delta="live" icon={<DollarSign className="h-4 w-4" />} />
+        <StatCard label="Today's Revenue" value={`$${todayRevenue.toLocaleString()}`} delta="live" icon={<DollarSign className="h-4 w-4" />} />
         <StatCard label="Appointments" value={String(apptCount)} delta="today" icon={<Calendar className="h-4 w-4" />} />
         <StatCard label="New Clients" value={String(newClients)} delta="today" icon={<Users className="h-4 w-4" />} />
-        <StatCard label="Avg Ticket" value={`₹${avgTicket}`} delta="today" icon={<TrendingUp className="h-4 w-4" />} />
+        <StatCard label="Avg Ticket" value={`$${avgTicket}`} delta="today" icon={<TrendingUp className="h-4 w-4" />} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -178,7 +178,7 @@ const Overview = () => {
                   <td className="py-3 text-foreground">{a.customers?.name ?? "—"}</td>
                   <td className="py-3 text-muted-foreground">{a.services?.name ?? "—"}</td>
                   <td className="py-3 text-muted-foreground">{a.staff?.name ?? "—"}</td>
-                  <td className="py-3 text-right text-foreground font-medium">{a.total_price ? `₹${a.total_price}` : "—"}</td>
+                  <td className="py-3 text-right text-foreground font-medium">${a.total_price ?? "—"}</td>
                 </tr>
               ))}
             </tbody>

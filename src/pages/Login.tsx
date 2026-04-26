@@ -19,21 +19,32 @@ const Login = () => {
     const email = (form.elements.namedItem("email") as HTMLInputElement).value;
     const password = (form.elements.namedItem("password") as HTMLInputElement).value;
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) { toast.error(error.message); setLoading(false); return; }
+    try {
+      // Race against a 10-second timeout
+      const result = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Sign in timed out. Please try again.")), 10000)
+        ),
+      ]) as Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>;
 
-    // Block non-owners immediately from metadata (no extra DB call)
-    const role = data.user?.user_metadata?.role ?? "owner";
-    if (role !== "owner") {
-      await supabase.auth.signOut();
-      toast.error("Only salon owners can sign in here.");
+      const { data, error } = result;
+      if (error) { toast.error(error.message); setLoading(false); return; }
+
+      const role = data.user?.user_metadata?.role ?? "owner";
+      if (role !== "owner") {
+        await supabase.auth.signOut();
+        toast.error("Only salon owners can sign in here.");
+        setLoading(false);
+        return;
+      }
+
+      toast.success("Welcome back!");
+      nav("/dashboard");
+    } catch (err: any) {
+      toast.error(err.message || "Sign in failed. Please try again.");
       setLoading(false);
-      return;
     }
-
-    // Navigate immediately — AuthContext will fetch profile/salon in background
-    toast.success("Welcome back!");
-    nav("/dashboard");
   };
 
   return (
