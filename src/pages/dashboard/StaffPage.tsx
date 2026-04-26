@@ -175,13 +175,17 @@ const StaffCustomersSheet = ({ staff, onClose }: { staff: Staff | null; onClose:
   const [histLoading, setHistLoading] = useState(false);
 
   useEffect(() => {
-    if (!staff) return;
+    if (!staff?.id) return;
     setHistLoading(true);
+    setRecords([]);
     supabase.from("appointments")
       .select("id, scheduled_at, total_price, status, notes, customers(name, phone), services(name)")
       .eq("staff_id", staff.id)
       .order("scheduled_at", { ascending: false })
-      .then(({ data }) => { setRecords((data ?? []) as unknown as StaffAppointment[]); setHistLoading(false); });
+      .then(({ data }) => {
+        setRecords((data ?? []) as unknown as StaffAppointment[]);
+        setHistLoading(false);
+      });
   }, [staff?.id]);
 
   const totalEarned = records.reduce((s, r) => s + (r.status !== "cancelled" ? r.total_price : 0), 0);

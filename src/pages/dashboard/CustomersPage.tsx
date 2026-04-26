@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Plus, Scissors, ChevronRight, Search, Phone, Mail, Trash2, Gift } from "lucide-react";
+import { Plus, Scissors, ChevronRight, Search, Phone, Mail, Trash2 } from "lucide-react";
 import { useData } from "@/context/DataContext";
 import { useAuth } from "@/context/AuthContext";
 import { Customer } from "@/context/DataContext";
@@ -207,7 +207,7 @@ const CustomerHistoryDrawer = ({ customer, onClose }: { customer: Customer | nul
               <div className="grid grid-cols-3 gap-3 pt-3 text-center">
                 <div className="glass-card rounded-lg p-2"><p className="text-[10px] uppercase tracking-widest text-muted-foreground">Visits</p><p className="font-display text-xl text-foreground">{customer.visits}</p></div>
                 <div className="glass-card rounded-lg p-2"><p className="text-[10px] uppercase tracking-widest text-muted-foreground">Lifetime</p><p className="font-display text-xl text-gradient-gold">₹{customer.lifetime_spend.toLocaleString()}</p></div>
-                <div className="glass-card rounded-lg p-2"><p className="text-[10px] uppercase tracking-widest text-muted-foreground">Points</p><p className="font-display text-xl text-primary flex items-center justify-center gap-1"><Gift className="h-3.5 w-3.5" />{customer.loyalty_points ?? 0}</p></div>
+                <div className="glass-card rounded-lg p-2"><p className="text-[10px] uppercase tracking-widest text-muted-foreground">Services</p><p className="font-display text-xl text-primary">{history.length}</p></div>
               </div>
             </SheetHeader>
 

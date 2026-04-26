@@ -49,41 +49,52 @@ const Book = () => {
   };
 
   const handleBooking = async () => {
-    if (!selectedSalon || !selectedService || !selectedStaff || !selectedDate || !selectedTime) return;
+    if (!selectedSalon || !selectedService || !selectedStaff || !selectedDate || !selectedTime) {
+      toast.error("Please complete all steps before confirming.");
+      return;
+    }
+    if (!customerInfo.name || !customerInfo.phone) {
+      toast.error("Name and phone number are required.");
+      return;
+    }
 
     try {
-      // 1. Find or create customer
-      const { data: customerData } = await supabase
-        .from("customers")
-        .select("id")
-        .eq("email", customerInfo.email)
-        .eq("salon_id", selectedSalon.id)
-        .single();
+      let customerId: string | null = null;
 
-      let customerId = customerData?.id;
+      // Find existing customer by email if provided
+      if (customerInfo.email) {
+        const { data: existing } = await supabase
+          .from("customers")
+          .select("id")
+          .eq("email", customerInfo.email)
+          .eq("salon_id", selectedSalon.id)
+          .maybeSingle();
+        customerId = existing?.id ?? null;
+      }
 
+      // Create new customer if not found
       if (!customerId) {
         const { data: newCustomer, error: custErr } = await supabase
           .from("customers")
           .insert({
             salon_id: selectedSalon.id,
             name: customerInfo.name,
-            email: customerInfo.email,
+            email: customerInfo.email || null,
             phone: customerInfo.phone,
             tag: "Regular",
             visits: 0,
             lifetime_spend: 0,
           })
-          .select()
+          .select("id")
           .single();
         if (custErr) throw custErr;
         customerId = newCustomer.id;
       }
 
-      // 2. Create appointment
+      // Build scheduled datetime
       const scheduledAt = new Date(selectedDate);
-      const [hours, minutes] = selectedTime.split(":");
-      scheduledAt.setHours(parseInt(hours), parseInt(minutes));
+      const [hrs, mins] = selectedTime.split(":");
+      scheduledAt.setHours(parseInt(hrs), parseInt(mins), 0, 0);
 
       const { error: apptErr } = await supabase.from("appointments").insert({
         salon_id: selectedSalon.id,
@@ -257,21 +268,23 @@ const Book = () => {
               <div className="space-y-3">
                 <input
                   type="text"
-                  placeholder="Full Name"
+                  placeholder="Full Name *"
+                  required
                   className="w-full bg-surface border border-border rounded-lg p-3 text-sm focus:ring-1 focus:ring-primary outline-none"
                   value={customerInfo.name}
                   onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
                 />
                 <input
                   type="email"
-                  placeholder="Email Address"
+                  placeholder="Email Address (optional)"
                   className="w-full bg-surface border border-border rounded-lg p-3 text-sm focus:ring-1 focus:ring-primary outline-none"
                   value={customerInfo.email}
                   onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })}
                 />
                 <input
                   type="tel"
-                  placeholder="Phone Number"
+                  placeholder="Phone Number *"
+                  required
                   className="w-full bg-surface border border-border rounded-lg p-3 text-sm focus:ring-1 focus:ring-primary outline-none"
                   value={customerInfo.phone}
                   onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
@@ -294,7 +307,15 @@ const Book = () => {
             </div>
 
             <Button variant="outline" onClick={() => setStep(3)}>Back</Button>
-            <Button onClick={handleBooking} className="w-full" variant="hero" size="lg">Confirm Booking</Button>
+            <Button
+              onClick={handleBooking}
+              className="w-full"
+              variant="hero"
+              size="lg"
+              disabled={!customerInfo.name || !customerInfo.phone}
+            >
+              Confirm Booking
+            </Button>
           </div>
         )}
 
